@@ -85,6 +85,7 @@ export default async function RootLayout({
   let danmakuAutoLoadDefault = true;
   let recommendationDataSource = 'Mixed';
   let tmdbApiKey = '';
+  let tmdbImageBaseUrl = 'https://image.tmdb.org';
   let bangumiDataSource =
     (process.env.NEXT_PUBLIC_BANGUMI_DATA_SOURCE as any) || 'direct';
   let bangumiApiBaseUrl =
@@ -137,6 +138,7 @@ export default async function RootLayout({
     process.env.LEGADO_ENABLED === 'true';
   let musicProxyEnabled = true;
   let advancedRecommendationEnabled = false;
+  let localSettingsSyncMode: 'off' | 'manual' | 'auto' = 'off';
   // 特殊源名单：供客户端按入口隔离收藏与播放记录。
   // 入口开关是本机 cookie，与存储模式无关，所以 localstorage 模式也要注入；
   // getConfig() 有模块级缓存，generateMetadata 里已经调过一次，这里不产生额外读取。
@@ -179,6 +181,8 @@ export default async function RootLayout({
     recommendationDataSource =
       config.SiteConfig.RecommendationDataSource || 'Mixed';
     tmdbApiKey = config.SiteConfig.TMDBApiKey || '';
+    tmdbImageBaseUrl =
+      config.SiteConfig.TMDBImageBaseUrl || 'https://image.tmdb.org';
     bangumiDataSource = config.SiteConfig.BangumiDataSource || 'direct';
     bangumiApiBaseUrl =
       config.SiteConfig.BangumiApiBaseUrl || 'https://api.bgm.tv';
@@ -259,6 +263,11 @@ export default async function RootLayout({
     xiaoyaEnabled = !!(
       config.XiaoyaConfig?.Enabled && config.XiaoyaConfig?.ServerURL
     );
+    localSettingsSyncMode =
+      config.SiteConfig?.LocalSettingsSyncMode === 'manual' ||
+      config.SiteConfig?.LocalSettingsSyncMode === 'auto'
+        ? config.SiteConfig.LocalSettingsSyncMode
+        : 'off';
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
@@ -274,6 +283,7 @@ export default async function RootLayout({
   const runtimeConfig = {
     STORAGE_TYPE: runtimeStorageType,
     DISPLAY_STORAGE_TYPE: displayStorageType,
+    LOCAL_SETTINGS_SYNC_MODE: localSettingsSyncMode,
     DOUBAN_PROXY_TYPE: doubanProxyType,
     DOUBAN_PROXY: doubanProxy,
     DOUBAN_IMAGE_PROXY_TYPE: doubanImageProxyType,
@@ -284,6 +294,7 @@ export default async function RootLayout({
     EnableComments: enableComments,
     DANMAKU_AUTO_LOAD_DEFAULT: danmakuAutoLoadDefault,
     RecommendationDataSource: recommendationDataSource,
+    TMDB_IMAGE_BASE_URL: tmdbImageBaseUrl,
     BANGUMI_DATA_SOURCE: bangumiDataSource,
     BANGUMI_API_BASE_URL: bangumiApiBaseUrl,
     BANGUMI_IMAGE_BASE_URL: bangumiImageBaseUrl,

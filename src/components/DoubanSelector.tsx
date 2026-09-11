@@ -20,6 +20,9 @@ interface DoubanSelectorProps {
   onSecondaryChange: (value: string) => void;
   onMultiLevelChange?: (values: Record<string, string>) => void;
   onWeekdayChange: (weekday: string) => void;
+  /** 「每日放送」的展示视图：卡片网格 / 时刻表时间轴 */
+  viewMode?: 'grid' | 'schedule';
+  onViewModeChange?: (viewMode: 'grid' | 'schedule') => void;
 }
 
 const DoubanSelector: React.FC<DoubanSelectorProps> = ({
@@ -30,6 +33,8 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
   onSecondaryChange,
   onMultiLevelChange,
   onWeekdayChange,
+  viewMode = 'grid',
+  onViewModeChange,
 }) => {
   // 为不同的选择器创建独立的refs和状态
   const primaryContainerRef = useRef<HTMLDivElement>(null);
@@ -101,6 +106,14 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
     { label: '剧场版', value: '剧场版' },
   ];
 
+  const scheduleValue = '__schedule__';
+  const animeSelectorOptions: SelectorOption[] = [
+    { label: '每日放送', value: '每日放送' },
+    { label: '时刻表', value: scheduleValue },
+    { label: '番剧', value: '番剧' },
+    { label: '剧场版', value: '剧场版' },
+  ];
+
   // 处理多级选择器变化
   const handleMultiLevelChange = (values: Record<string, string>) => {
     onMultiLevelChange?.(values);
@@ -164,9 +177,12 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
         setPrimaryIndicatorStyle
       );
     } else if (type === 'anime') {
-      const activeIndex = animePrimaryOptions.findIndex(
-        (opt) =>
-          opt.value === (primarySelection || animePrimaryOptions[0].value)
+      const activeValue =
+        primarySelection === '每日放送' && viewMode === 'schedule'
+          ? scheduleValue
+          : primarySelection || animePrimaryOptions[0].value;
+      const activeIndex = animeSelectorOptions.findIndex(
+        (opt) => opt.value === activeValue
       );
       updateIndicatorPosition(
         activeIndex,
@@ -240,8 +256,12 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
       );
       return cleanup;
     } else if (type === 'anime') {
-      const activeIndex = animePrimaryOptions.findIndex(
-        (opt) => opt.value === primarySelection
+      const activeValue =
+        primarySelection === '每日放送' && viewMode === 'schedule'
+          ? scheduleValue
+          : primarySelection;
+      const activeIndex = animeSelectorOptions.findIndex(
+        (opt) => opt.value === activeValue
       );
       const cleanup = updateIndicatorPosition(
         activeIndex,
@@ -262,7 +282,7 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
       );
       return cleanup;
     }
-  }, [primarySelection]);
+  }, [primarySelection, viewMode]);
 
   // 监听副选择器变化
   useEffect(() => {
@@ -464,9 +484,19 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
             </span>
             <div className='overflow-x-auto'>
               {renderCapsuleSelector(
-                animePrimaryOptions,
-                primarySelection || animePrimaryOptions[0].value,
-                onPrimaryChange,
+                animeSelectorOptions,
+                primarySelection === '每日放送' && viewMode === 'schedule'
+                  ? scheduleValue
+                  : primarySelection || animePrimaryOptions[0].value,
+                (value) => {
+                  if (value === scheduleValue) {
+                    onPrimaryChange('每日放送');
+                    onViewModeChange?.('schedule');
+                    return;
+                  }
+                  onPrimaryChange(value);
+                  onViewModeChange?.('grid');
+                },
                 true
               )}
             </div>
@@ -474,7 +504,6 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
 
           {/* 筛选部分 - 根据一级选择器显示不同内容 */}
           {(primarySelection || animePrimaryOptions[0].value) === '每日放送' ? (
-            // 每日放送分类下显示星期选择器
             <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
               <span className='text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[48px]'>
                 星期
