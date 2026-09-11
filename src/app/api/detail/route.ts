@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const sourceCode = searchParams.get('source');
-  const includeSpecialSources = searchParams.get('special') === '1';
+  const specialOnly = searchParams.get('special') === '1';
 
   if (!id || !sourceCode) {
     return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       // 2. 直接调用 OpenList 客户端获取视频列表
       const { OpenListClient } = await import('@/lib/openlist.client');
       const { getCachedVideoInfo, setCachedVideoInfo } = await import('@/lib/openlist-cache');
-      const { parseVideoFileName } = await import('@/lib/video-parser');
+      const { formatEpisodeDisplayTitle, parseVideoFileName } = await import('@/lib/video-parser');
 
       const client = new OpenListClient(
         openListConfig.URL,
@@ -177,6 +177,13 @@ export async function GET(request: NextRequest) {
         setCachedVideoInfo(folderPath, videoInfo);
       }
 
+      const parsedSeasons = new Set(
+        videoFiles
+          .map((file) => parseVideoFileName(file.name).season)
+          .filter((season): season is number => typeof season === 'number')
+      );
+      const hasMultipleSeasons = parsedSeasons.size > 1;
+
       const episodes = videoFiles
         .map((file, index) => {
           const parsed = parseVideoFileName(file.name);
@@ -186,9 +193,12 @@ export async function GET(request: NextRequest) {
           } else {
             episodeInfo = videoInfo!.episodes[file.name] || { episode: index + 1, season: undefined, title: undefined, parsed_from: 'filename' };
           }
-          let displayTitle = episodeInfo.title;
-          if (!displayTitle && episodeInfo.episode) {
-            displayTitle = episodeInfo.isOVA ? `OVA ${episodeInfo.episode}` : `第${episodeInfo.episode}集`;
+          let displayTitle = formatEpisodeDisplayTitle(
+            { episode: episodeInfo.episode, season: episodeInfo.season, isOVA: episodeInfo.isOVA },
+            hasMultipleSeasons
+          );
+          if (!displayTitle) {
+            displayTitle = episodeInfo.title;
           }
           if (!displayTitle) {
             displayTitle = file.name;
@@ -242,7 +252,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const apiSites = await getAvailableApiSites(authInfo.username, includeSpecialSources);
+    const apiSites = await getAvailableApiSites(authInfo.username, specialOnly);
     const apiSite = apiSites.find((site) => site.key === sourceCode);
 
     if (!apiSite) {
